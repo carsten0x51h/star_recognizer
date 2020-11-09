@@ -18,7 +18,7 @@
  */
 #include <iostream>
 #include <filesystem>
-#include <stdexcept>
+//#include <stdexcept> // Standrd runtime_exception...
 
 #include <assert.h>
 #include <CImg.h>
@@ -30,11 +30,19 @@
 #include <set>
 #include <array>
 #include <vector>
- 
+
+// See https://en.cppreference.com/w/cpp/ranges
+// Not yet part of gcc-9
+// See https://stackoverflow.com/questions/56118941/do-we-have-c20-ranges-library-in-gcc-9
+//#include <ranges>
+// Using boost as long as ranges lib made it into the std.
+//#include <boost/range/adaptors.hpp>
+//#include <boost/range/algorithm.hpp>
+
 #include <gsl/gsl_multifit_nlin.h>
 
 #include <boost/program_options.hpp>
-#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 
 using namespace std;
 using namespace cimg_library;
@@ -73,14 +81,13 @@ insideCircle(float inX /*pos of x*/, float inY /*pos of y*/, float inCenterX, fl
 
 
 void
-readJpeg(CImg<float> * inImg, const string & inFilename, long * outBitPix) {
-  //CImg<unsigned char> jpegImage(inFilename);
+readViaCimg(CImg<float> * inImg, const string & inFilename, long * outBitPix) {
   
   inImg->load(inFilename.c_str());
-  
-  *outBitPix = 8; // TODO: ok?
-}
 
+  *outBitPix = 8; // TODO: Is this correct?
+}
+// PNG: 3394, JPEG: 3394
 
 void
 readFits(CImg<float> * inImg, const string & inFilename, long * outBitPix) {
@@ -103,43 +110,27 @@ readFits(CImg<float> * inImg, const string & inFilename, long * outBitPix) {
 void
 readFile(CImg<float> * inImg, const string & inFilename, long * outBitPix = 0)
 {
-  typedef std::function<void(CImg<float> *, const string &, long *)> ImageReaderFunctionT;
-  
-  // Supported file extensions
-  typedef std::map<std::string, ImageReaderFunctionT> FileExtensionHandlerMapT;
-
-  static FileExtensionHandlerMapT fileExtensionMap = {
-        { ".jpg", & readJpeg },
-        { ".jpeg", & readJpeg },
-		{ ".fts", & readFits },
-		{ ".fits", & readFits }
-  };
-  
   namespace fs = std::filesystem;
   fs::path filePath = fs::path(inFilename);
   std::string ext = filePath.extension();
-
-  boost::algorithm::to_lower(ext); // convert ext to lowercase
   
-  auto it = fileExtensionMap.find(ext);
+  boost::algorithm::to_lower(ext);
 
-  if (it != fileExtensionMap.end()) {
-	it->second(inImg, inFilename, outBitPix);
+  static std::vector<std::string> fitsExtensions = { ".fts", ".fits" };
+
+  auto it = std::find(fitsExtensions.begin(), fitsExtensions.end(), ext);
+  bool isFitsExt = (it != fitsExtensions.end());
+
+  if (isFitsExt) {
+	readFits(inImg, inFilename, outBitPix);
   }
   else {
-	std::stringstream ss;
-	ss << "File extension '" << ext << "' not supported. Supported are " << std::endl;
-	
-	std::for_each(fileExtensionMap.begin(), fileExtensionMap.end(),
-				  [&](FileExtensionHandlerMapT::value_type const& p) {
-					ss << "\t" << p.first << std::endl;
-				  });
-
-	throw std::runtime_error("Error: " + ss.str());	
+	// Try to load via CImg directly...
+	readViaCimg(inImg, inFilename, outBitPix);
   }
-  
 } 
  
+
 void
 thresholdOtsu(const CImg<float> & inImg, long inBitPix, CImg<float> * outBinImg)
 {

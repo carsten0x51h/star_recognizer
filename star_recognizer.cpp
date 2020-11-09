@@ -87,7 +87,7 @@ readViaCimg(CImg<float> * inImg, const string & inFilename, long * outBitPix) {
 
   *outBitPix = 8; // TODO: Is this correct?
 }
-// PNG: 3394, JPEG: 3394
+
 
 void
 readFits(CImg<float> * inImg, const string & inFilename, long * outBitPix) {
@@ -678,7 +678,7 @@ main(int argc, char *argv[])
   po::options_description desc("StarRecognizer options");
   
   desc.add_options()
-    ("help,h", "produce help message")
+    ("help,h", "Produce this help message.")
     ("input-file,i", po::value<std::string>(), "Path to image file.")
 	;
 
@@ -706,7 +706,8 @@ main(int argc, char *argv[])
 			  << filename
 			  << std::endl;
   } else {
-	std::cout << "No image filename specified. Exiting." << std::endl;
+	std::cout << "Please specify an image filename." << std::endl;
+	std::cout << desc << std::endl;
 	return 1;
   }
 
@@ -716,10 +717,10 @@ main(int argc, char *argv[])
   
   // Read file to CImg
   try {
-    cerr << "Opening file " << argv[1] << endl;
+	std::cout << "Opening file " << filename << endl;
     readFile(& img, filename, & bitPix);
   } catch (FitsException &) {
-    cerr << "Read FITS failed." << endl;
+	std::cout << "Read FITS failed." << endl;
     return 1;
   }
  
